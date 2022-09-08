@@ -2,8 +2,8 @@ var leftSide = 0;
 var rightSide = 500;
 var topSide = 0;
 var bottomSide = 500;
+var initialGroundY = 60;
 
-// Enemies our player must avoid
 var Enemy = function(x, y, speed) {
     this.sprite = 'images/enemy-bug.png';
     this.speed = speed;
@@ -11,26 +11,21 @@ var Enemy = function(x, y, speed) {
     this.y = y;
 };
 
-// Parameter: dt, a time delta between ticks
 Enemy.prototype.update = function(dt) {
     var shift = this.speed * dt;
     this.x = this.x + shift;
     if (this.x >= rightSide) {
-        this.x = -100;
+        this.x = -this.width;
     }
 };
 
-// Draw the enemy on the screen, required method for game
 Enemy.prototype.render = function() {
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 };
 
-Enemy.prototype.width = 70;
+Enemy.prototype.width = 80;
 Enemy.prototype.height = 70;
 
-// Now write your own player class
-// This class requires an update(), render() and
-// a handleInput() method.
 var Player = function(x, y, speed) {
     this.sprite = 'images/char-princess-girl.png';
     this.speed = speed;
@@ -42,29 +37,29 @@ Player.prototype.width = 70;
 Player.prototype.height = 70;
 
 Player.prototype.update = function() {
-    const enemy = allEnemies[0];
+    const isOverlapDetected = allEnemies.some((enemy) => {
+        return checkIsOverlap(
+            {
+                x: player.x,
+                y: player.y
+            },
+            {
+                x: player.x + player.width,
+                y: player.y + player.height
+            },
+            {
+                x: enemy.x,
+                y: enemy.y
+            },
+            {
+                x: enemy.x + enemy.width,
+                y: enemy.y + enemy.height
+            }
+        );
+    });
 
-    const isOverlap = checkIsOverlap(
-        {
-            x: player.x,
-            y: player.y
-        },
-        {
-            x: player.x + player.width,
-            y: player.y + player.height
-        },
-        {
-            x: enemy.x,
-            y: enemy.y
-        },
-        {
-            x: enemy.x + enemy.width,
-            y: enemy.y + enemy.height
-        }
-    );
-
-    if (isOverlap) {
-        gameOver();
+    if (isOverlapDetected) {
+        gameOver(false);
     }
 }
 
@@ -95,7 +90,7 @@ Player.prototype.handleInput = function(action) {
         case 'up': {
             this.y -= this.speed;
             if (this.y <= 0) {
-                gameOver();
+                gameOver(true);
             }
 
             break;
@@ -108,19 +103,29 @@ Player.prototype.setPosition = function(x, y) {
     this.y = y;
 }
 
-// Now instantiate your objects.
-// Place all enemy objects in an array called allEnemies
-// Place the player object in a variable called player
-var allEnemies = [
-    new Enemy(100, 200, 100),
-    // new Enemy(-100, 60, 100),
-    // new Enemy(-200, 140, 200), 
-    // new Enemy(-300, 220, 150)
-];
-var player = new Player(200, 400, 75);
+function getRandomNumberFromARange(min, max) {
+    return (Math.random() * (max - min)) + min;
+}
 
-// This listens for key presses and sends the keys to your
-// Player.handleInput() method. You don't need to modify this.
+function createRandomEnemy(row) {
+    var x = getRandomNumberFromARange(-400, -100);
+    var y = initialGroundY + row * 80;
+    var speed = getRandomNumberFromARange(100, 300);
+
+    return new Enemy(x, y, speed);
+}
+
+var allEnemies = [
+    createRandomEnemy(0),
+    createRandomEnemy(1), 
+    createRandomEnemy(2)
+];
+
+var initialPlayerX = 200;
+var initialPlayerY = 400;
+var playerSpeed = 75;
+var player = new Player(initialPlayerX, initialPlayerY, playerSpeed);
+
 document.addEventListener('keyup', function(e) {
     var allowedKeys = {
         37: 'left',
@@ -132,20 +137,35 @@ document.addEventListener('keyup', function(e) {
     player.handleInput(allowedKeys[e.keyCode]);
 });
 
-function gameOver() {
-    player.setPosition(200, 400)
-}
-
 function checkIsOverlap(l1, r1,  l2,  r2) {
-    const isRectangleOnLeftSideOfAnother = l1.x > r2.x || l2.x > r1.x;
+    const isRectangleOnLeftSideOfAnother = (l1.x > r2.x || l2.x > r1.x);
     if (isRectangleOnLeftSideOfAnother) {
         return false;
     }
 
-    const isOneRectangleAboveAnother = r1.y < l2.y || r2.y < l1.y;
+    const isOneRectangleAboveAnother = (r1.y < l2.y || r2.y < l1.y);
     if (isOneRectangleAboveAnother) {
         return false;
     }
 
     return true;
 }
+
+var wins = 0;
+var losses = 0;
+
+function gameOver(isWin) {
+    if (isWin) {
+        wins++;
+    } else {
+        losses++;
+    }
+
+    scoreEl.innerText = `${wins}:${losses}`;
+    player.setPosition(initialPlayerX, initialPlayerY);
+}
+
+const scoreEl = document.createElement('div');
+scoreEl.className = 'score';
+scoreEl.innerText = '0:0';
+document.body.appendChild(scoreEl);
